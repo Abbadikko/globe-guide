@@ -38,7 +38,30 @@ jobs:
             libssl-dev \
             ccache
 
-      - name: Cache Buildozer global directory
+      - name: Set up Android SDK manually
+        run: |
+          # Download Android command line tools
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          cd $HOME
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
+          unzip -q commandlinetools-linux-11076708_latest.zip
+          mv cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+          
+          # Set environment
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
+          
+          # Accept licenses
+          yes | sdkmanager --licenses
+          
+          # Install required SDK components
+          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          
+          # Write license files for buildozer
+          mkdir -p $HOME/.buildozer/android/platform/
+          ln -sf $HOME/android-sdk $HOME/.buildozer/android/platform/android-sdk
+
+      - name: Cache Buildozer
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
@@ -50,22 +73,13 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython virtualenv
 
-      - name: Accept Android SDK licenses
-        run: |
-          mkdir -p $HOME/.buildozer/android/platform/android-sdk/licenses
-          echo -e "\n24333f8a63b6825ea9c5514f83c2829b004d1fee\nd56f5187479451eabf01fb78af6dfcb131a6481e" \
-            > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license
-          echo -e "\n84831b9409646a918e30573bab4c9c91346d8abd" \
-            > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-preview-license
-          echo -e "\n504667f4c0de7af1a06de9f4b1727b84351f2910" \
-            > $HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-build-tools-license
-
       - name: Build APK
         run: |
           export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
           export PATH=$JAVA_HOME/bin:$PATH
-          # Pass yes to any license prompts during build
-          yes | buildozer android debug 2>&1
+          export ANDROID_SDK_ROOT=$HOME/android-sdk
+          export ANDROID_HOME=$HOME/android-sdk
+          buildozer android debug 2>&1
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
