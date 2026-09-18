@@ -38,35 +38,13 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython virtualenv
 
-      - name: Set up Android SDK
+      - name: Accept Android SDK licenses
         run: |
-          BUILDOZER_SDK=$HOME/.buildozer/android/platform/android-sdk
-          mkdir -p $BUILDOZER_SDK/cmdline-tools
-          cd $HOME
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-          unzip -q commandlinetools-linux-11076708_latest.zip
-          mv cmdline-tools $BUILDOZER_SDK/cmdline-tools/latest
-
-          export ANDROID_SDK_ROOT=$BUILDOZER_SDK
-          SDKMANAGER=$BUILDOZER_SDK/cmdline-tools/latest/bin/sdkmanager
-
-          # Accept licenses and install components
-          yes | $SDKMANAGER --sdk_root=$BUILDOZER_SDK --licenses
-          $SDKMANAGER --sdk_root=$BUILDOZER_SDK \
-            "platform-tools" \
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+            "build-tools;33.0.2" \
             "platforms;android-33" \
-            "build-tools;33.0.2"
-
-          # Create old-style tools/bin path that Buildozer expects
-          mkdir -p $BUILDOZER_SDK/tools/bin
-          ln -sf $BUILDOZER_SDK/cmdline-tools/latest/bin/sdkmanager \
-                 $BUILDOZER_SDK/tools/bin/sdkmanager
-          ln -sf $BUILDOZER_SDK/cmdline-tools/latest/bin/avdmanager \
-                 $BUILDOZER_SDK/tools/bin/avdmanager
-
-          echo "✅ SDK setup complete"
-          ls $BUILDOZER_SDK/build-tools/
-          ls $BUILDOZER_SDK/tools/bin/
+            "platform-tools" || true
 
       - name: Cache Buildozer
         uses: actions/cache@v4
@@ -77,8 +55,10 @@ jobs:
 
       - name: Build APK
         run: |
-          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
-          export ANDROID_HOME=$ANDROID_SDK_ROOT
+          export ANDROIDSDK=$ANDROID_SDK_ROOT
+          export ANDROIDNDK=$ANDROID_NDK_HOME
+          export ANDROIDAPI=33
+          export ANDROIDMINAPI=21
           buildozer android debug 2>&1
 
       - name: Upload APK as artifact
