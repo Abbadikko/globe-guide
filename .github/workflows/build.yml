@@ -13,6 +13,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
       - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
@@ -22,44 +28,23 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            build-essential \
-            git \
-            zip \
-            unzip \
-            openjdk-17-jdk \
-            autoconf \
-            libtool \
-            pkg-config \
-            zlib1g-dev \
-            libncurses5-dev \
-            libncursesw5-dev \
-            cmake \
-            libffi-dev \
-            libssl-dev \
-            ccache
+            build-essential git zip unzip \
+            autoconf libtool pkg-config \
+            zlib1g-dev libncurses5-dev libncursesw5-dev \
+            cmake libffi-dev libssl-dev ccache
 
-      - name: Set up Android SDK manually
+      - name: Set up Android SDK
         run: |
-          # Download Android command line tools
+          export JAVA_HOME=$JAVA_HOME
           mkdir -p $HOME/android-sdk/cmdline-tools
           cd $HOME
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -q commandlinetools-linux-11076708_latest.zip
           mv cmdline-tools $HOME/android-sdk/cmdline-tools/latest
-          
-          # Set environment
           export ANDROID_SDK_ROOT=$HOME/android-sdk
           export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
-          
-          # Accept licenses
           yes | sdkmanager --licenses
-          
-          # Install required SDK components
           sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
-          
-          # Write license files for buildozer
-          mkdir -p $HOME/.buildozer/android/platform/
-          ln -sf $HOME/android-sdk $HOME/.buildozer/android/platform/android-sdk
 
       - name: Cache Buildozer
         uses: actions/cache@v4
@@ -75,10 +60,9 @@ jobs:
 
       - name: Build APK
         run: |
-          export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-          export PATH=$JAVA_HOME/bin:$PATH
           export ANDROID_SDK_ROOT=$HOME/android-sdk
           export ANDROID_HOME=$HOME/android-sdk
+          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
           buildozer android debug 2>&1
 
       - name: Upload APK as artifact
