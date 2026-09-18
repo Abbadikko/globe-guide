@@ -33,18 +33,30 @@ jobs:
             zlib1g-dev libncurses5-dev libncursesw5-dev \
             cmake libffi-dev libssl-dev ccache
 
-      - name: Set up Android SDK
+      - name: Install Python dependencies
         run: |
-          export JAVA_HOME=$JAVA_HOME
-          mkdir -p $HOME/android-sdk/cmdline-tools
+          pip install --upgrade pip
+          pip install buildozer cython virtualenv
+
+      - name: Set up Android SDK inside Buildozer path
+        run: |
+          # Install SDK exactly where Buildozer expects it
+          BUILDOZER_SDK=$HOME/.buildozer/android/platform/android-sdk
+          mkdir -p $BUILDOZER_SDK/cmdline-tools
           cd $HOME
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
           unzip -q commandlinetools-linux-11076708_latest.zip
-          mv cmdline-tools $HOME/android-sdk/cmdline-tools/latest
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin
-          yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-33" "build-tools;33.0.2"
+          mv cmdline-tools $BUILDOZER_SDK/cmdline-tools/latest
+
+          export ANDROID_SDK_ROOT=$BUILDOZER_SDK
+          export PATH=$PATH:$BUILDOZER_SDK/cmdline-tools/latest/bin
+
+          # Accept licenses and install build tools
+          yes | sdkmanager --sdk_root=$BUILDOZER_SDK --licenses
+          sdkmanager --sdk_root=$BUILDOZER_SDK \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;33.0.2"
 
       - name: Cache Buildozer
         uses: actions/cache@v4
@@ -53,16 +65,10 @@ jobs:
           key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
           restore-keys: buildozer-${{ runner.os }}-
 
-      - name: Install Python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install buildozer cython virtualenv
-
       - name: Build APK
         run: |
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-          export ANDROID_HOME=$HOME/android-sdk
-          export PATH=$PATH:$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools
+          export ANDROID_SDK_ROOT=$HOME/.buildozer/android/platform/android-sdk
+          export ANDROID_HOME=$ANDROID_SDK_ROOT
           buildozer android debug 2>&1
 
       - name: Upload APK as artifact
