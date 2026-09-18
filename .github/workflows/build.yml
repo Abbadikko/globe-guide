@@ -38,9 +38,8 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython virtualenv
 
-      - name: Set up Android SDK inside Buildozer path
+      - name: Set up Android SDK
         run: |
-          # Install SDK exactly where Buildozer expects it
           BUILDOZER_SDK=$HOME/.buildozer/android/platform/android-sdk
           mkdir -p $BUILDOZER_SDK/cmdline-tools
           cd $HOME
@@ -49,14 +48,25 @@ jobs:
           mv cmdline-tools $BUILDOZER_SDK/cmdline-tools/latest
 
           export ANDROID_SDK_ROOT=$BUILDOZER_SDK
-          export PATH=$PATH:$BUILDOZER_SDK/cmdline-tools/latest/bin
+          SDKMANAGER=$BUILDOZER_SDK/cmdline-tools/latest/bin/sdkmanager
 
-          # Accept licenses and install build tools
-          yes | sdkmanager --sdk_root=$BUILDOZER_SDK --licenses
-          sdkmanager --sdk_root=$BUILDOZER_SDK \
+          # Accept licenses and install components
+          yes | $SDKMANAGER --sdk_root=$BUILDOZER_SDK --licenses
+          $SDKMANAGER --sdk_root=$BUILDOZER_SDK \
             "platform-tools" \
             "platforms;android-33" \
             "build-tools;33.0.2"
+
+          # Create old-style tools/bin path that Buildozer expects
+          mkdir -p $BUILDOZER_SDK/tools/bin
+          ln -sf $BUILDOZER_SDK/cmdline-tools/latest/bin/sdkmanager \
+                 $BUILDOZER_SDK/tools/bin/sdkmanager
+          ln -sf $BUILDOZER_SDK/cmdline-tools/latest/bin/avdmanager \
+                 $BUILDOZER_SDK/tools/bin/avdmanager
+
+          echo "✅ SDK setup complete"
+          ls $BUILDOZER_SDK/build-tools/
+          ls $BUILDOZER_SDK/tools/bin/
 
       - name: Cache Buildozer
         uses: actions/cache@v4
