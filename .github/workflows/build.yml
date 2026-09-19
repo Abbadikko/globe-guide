@@ -19,10 +19,10 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Set up Python 3.10
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install system dependencies
         run: |
@@ -35,37 +35,32 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          pip install --upgrade pip
-          pip install buildozer cython virtualenv
+          python -m pip install --upgrade pip
+          python -m pip install \
+            buildozer==1.5.0 \
+            cython==0.29.36 \
+            virtualenv
 
       - name: Fix sdkmanager path for Buildozer
         run: |
-          # Buildozer looks for sdkmanager in old tools/bin location
-          # Create symlink from old path to new cmdline-tools path
-          sudo mkdir -p $ANDROID_SDK_ROOT/tools/bin
-          sudo ln -sf $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
-                      $ANDROID_SDK_ROOT/tools/bin/sdkmanager
-          sudo ln -sf $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager \
-                      $ANDROID_SDK_ROOT/tools/bin/avdmanager
-
-          # Accept all licenses
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
-
-          # Verify
-          echo "sdkmanager at tools/bin:"
-          ls -la $ANDROID_SDK_ROOT/tools/bin/
-          echo "build-tools:"
-          ls $ANDROID_SDK_ROOT/build-tools/
+          sudo mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
+          sudo ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+                      "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
+          sudo ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" \
+                      "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
+          yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
 
       - name: Cache Buildozer
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-${{ runner.os }}-${{ hashFiles('buildozer.spec') }}
-          restore-keys: buildozer-${{ runner.os }}-
+          key: buildozer-${{ runner.os }}-python311-kivy230-${{ hashFiles('buildozer.spec') }}
+          restore-keys: |
+            buildozer-${{ runner.os }}-python311-
 
       - name: Build APK
         run: |
+          rm -rf .buildozer
           export ANDROIDSDK=$ANDROID_SDK_ROOT
           export ANDROIDNDK=/usr/local/lib/android/sdk/ndk/27.3.13750724
           export ANDROIDAPI=33
