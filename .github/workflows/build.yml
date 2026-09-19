@@ -53,47 +53,45 @@ jobs:
 
       - name: Prepare compatible python-for-android
         run: |
-          rm -rf .buildozer
-          rm -rf ~/.buildozer
-          rm -rf python-for-android
+          rm -rf .buildozer ~/.buildozer python-for-android
 
-          git clone --depth 1 \
-            --branch 2023.09.16 \
+          git clone \
             https://github.com/kivy/python-for-android.git \
             python-for-android
 
           cd python-for-android
-          git fetch --tags --depth 1
-          git checkout 2023.09.16
+
+          if git ls-remote --exit-code --tags origin "refs/tags/2023.09.16" >/dev/null 2>&1; then
+            git fetch --depth 1 origin tag 2023.09.16
+            git checkout --detach 2023.09.16
+          elif git ls-remote --exit-code --tags origin "refs/tags/v2023.09.16" >/dev/null 2>&1; then
+            git fetch --depth 1 origin tag v2023.09.16
+            git checkout --detach v2023.09.16
+          else
+            echo "Compatible python-for-android tag 2023.09.16 was not found"
+            exit 1
+          fi
 
           python -m pip install .
-
-          echo "python-for-android source:"
+          echo "python-for-android commit:"
           git rev-parse HEAD
           python -m pip show python-for-android
 
       - name: Fix sdkmanager path for Buildozer
         run: |
           sudo mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
-
           sudo ln -sf \
             "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
             "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
-
           sudo ln -sf \
             "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" \
             "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
-
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
 
       - name: Force Buildozer to use compatible python-for-android
         run: |
-          # Buildozer reads p4a.source_dir from buildozer.spec.
-          # Add it only for this CI run; the tracked file is not permanently changed.
           printf '\np4a.source_dir = %s\n' \
             "$GITHUB_WORKSPACE/python-for-android" >> buildozer.spec
-
-          tail -n 5 buildozer.spec
 
       - name: Build APK
         env:
