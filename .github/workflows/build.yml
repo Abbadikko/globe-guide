@@ -2,7 +2,7 @@ name: Build Globe Guide APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -17,55 +17,72 @@ jobs:
         uses: actions/setup-java@v4
         with:
           java-version: '17'
-          distribution: 'temurin'
+          distribution: temurin
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.10'
 
       - name: Install system dependencies
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y \
-            build-essential git zip unzip \
-            autoconf libtool pkg-config \
-            zlib1g-dev libncurses5-dev libncursesw5-dev \
-            cmake libffi-dev libssl-dev ccache
+            build-essential \
+            git \
+            zip \
+            unzip \
+            autoconf \
+            libtool \
+            pkg-config \
+            zlib1g-dev \
+            libncurses5-dev \
+            libncursesw5-dev \
+            cmake \
+            libffi-dev \
+            libssl-dev \
+            ccache
 
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install \
             buildozer==1.5.0 \
+            python-for-android==2024.1.21 \
             cython==0.29.36 \
             virtualenv
 
       - name: Fix sdkmanager path for Buildozer
         run: |
           sudo mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
-          sudo ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
-                      "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
-          sudo ln -sf "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" \
-                      "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
+
+          sudo ln -sf \
+            "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
+
+          sudo ln -sf \
+            "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" \
+            "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
+
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
 
       - name: Cache Buildozer
         uses: actions/cache@v4
         with:
           path: ~/.buildozer
-          key: buildozer-${{ runner.os }}-python311-kivy230-${{ hashFiles('buildozer.spec') }}
-          restore-keys: |
-            buildozer-${{ runner.os }}-python311-
+          key: buildozer-${{ runner.os }}-p4a-2024.1.21-${{ hashFiles('buildozer.spec') }}
 
       - name: Build APK
         run: |
           rm -rf .buildozer
-          export ANDROIDSDK=$ANDROID_SDK_ROOT
-          export ANDROIDNDK=/usr/local/lib/android/sdk/ndk/27.3.13750724
+          rm -rf ~/.buildozer/android/platform/python-for-android
+
+          export ANDROIDSDK="$ANDROID_SDK_ROOT"
+          export ANDROIDNDK="$ANDROID_SDK_ROOT/ndk/27.3.13750724"
           export ANDROIDAPI=33
           export ANDROIDMINAPI=21
-          buildozer android debug 2>&1
+
+          buildozer android debug
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
