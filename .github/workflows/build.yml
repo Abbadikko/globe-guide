@@ -38,13 +38,24 @@ jobs:
           pip install --upgrade pip
           pip install buildozer cython virtualenv
 
-      - name: Accept Android SDK licenses
+      - name: Fix sdkmanager path for Buildozer
         run: |
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses || true
-          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
-            "build-tools;33.0.2" \
-            "platforms;android-33" \
-            "platform-tools" || true
+          # Buildozer looks for sdkmanager in old tools/bin location
+          # Create symlink from old path to new cmdline-tools path
+          sudo mkdir -p $ANDROID_SDK_ROOT/tools/bin
+          sudo ln -sf $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager \
+                      $ANDROID_SDK_ROOT/tools/bin/sdkmanager
+          sudo ln -sf $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager \
+                      $ANDROID_SDK_ROOT/tools/bin/avdmanager
+
+          # Accept all licenses
+          yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
+
+          # Verify
+          echo "sdkmanager at tools/bin:"
+          ls -la $ANDROID_SDK_ROOT/tools/bin/
+          echo "build-tools:"
+          ls $ANDROID_SDK_ROOT/build-tools/
 
       - name: Cache Buildozer
         uses: actions/cache@v4
@@ -56,7 +67,7 @@ jobs:
       - name: Build APK
         run: |
           export ANDROIDSDK=$ANDROID_SDK_ROOT
-          export ANDROIDNDK=$ANDROID_NDK_HOME
+          export ANDROIDNDK=/usr/local/lib/android/sdk/ndk/27.3.13750724
           export ANDROIDAPI=33
           export ANDROIDMINAPI=21
           buildozer android debug 2>&1
