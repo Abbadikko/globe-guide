@@ -43,24 +43,34 @@ jobs:
             libssl-dev \
             ccache
 
-      - name: Install Python dependencies
+      - name: Install Buildozer dependencies
         run: |
           python -m pip install --upgrade pip
-
-          python -m pip uninstall -y \
-            buildozer \
-            python-for-android \
-            cython || true
-
           python -m pip install \
             buildozer==1.5.0 \
-            python-for-android==2022.12.20 \
             cython==0.29.36 \
             virtualenv
 
-          python -m pip show buildozer
+      - name: Prepare compatible python-for-android
+        run: |
+          rm -rf .buildozer
+          rm -rf ~/.buildozer
+          rm -rf python-for-android
+
+          git clone --depth 1 \
+            --branch 2023.09.16 \
+            https://github.com/kivy/python-for-android.git \
+            python-for-android
+
+          cd python-for-android
+          git fetch --tags --depth 1
+          git checkout 2023.09.16
+
+          python -m pip install .
+
+          echo "python-for-android source:"
+          git rev-parse HEAD
           python -m pip show python-for-android
-          python --version
 
       - name: Fix sdkmanager path for Buildozer
         run: |
@@ -76,18 +86,23 @@ jobs:
 
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
 
-      - name: Build APK
+      - name: Force Buildozer to use compatible python-for-android
         run: |
-          # Remove all artifacts from previous Python 3.14 builds.
+          # Buildozer reads p4a.source_dir from buildozer.spec.
+          # Add it only for this CI run; the tracked file is not permanently changed.
+          printf '\np4a.source_dir = %s\n' \
+            "$GITHUB_WORKSPACE/python-for-android" >> buildozer.spec
+
+          tail -n 5 buildozer.spec
+
+      - name: Build APK
+        env:
+          ANDROIDSDK: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROIDNDK: /usr/local/lib/android/sdk/ndk/27.3.13750724
+          ANDROIDAPI: '33'
+          ANDROIDMINAPI: '21'
+        run: |
           rm -rf .buildozer
-          rm -rf ~/.buildozer
-          rm -rf ~/.cache/pip
-
-          export ANDROIDSDK="$ANDROID_SDK_ROOT"
-          export ANDROIDNDK="$ANDROID_SDK_ROOT/ndk/27.3.13750724"
-          export ANDROIDAPI=33
-          export ANDROIDMINAPI=21
-
           buildozer android debug
 
       - name: Upload APK as artifact
