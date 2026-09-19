@@ -5,7 +5,7 @@ package.domain = com.abba.globeguide
 source.dir = .
 source.include_exts = py,png,jpg,kv,atlas,txt,json
 version = 1.0
-requirements = python3,kivy==2.3.0,requests,certifi,urllib3,charset-normalizer,idna
+requirements = python3==3.11.9,kivy==2.3.0,requests,certifi,urllib3,charset-normalizer,idna
 orientation = portrait
 fullscreen = 0
 android.permissions = INTERNET
