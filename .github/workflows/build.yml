@@ -91,6 +91,15 @@ jobs:
 
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
 
+      - name: Install compatible Android NDK
+        run: |
+          "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-33" \
+            "build-tools;33.0.2" \
+            "ndk;25.2.9519653"
+
+          test -d "$ANDROID_SDK_ROOT/ndk/25.2.9519653"
+
       - name: Force Buildozer to use compatible python-for-android
         run: |
           python - <<'PY'
@@ -115,19 +124,32 @@ jobs:
           path.write_text(text)
 
           print("Effective p4a configuration:")
-          sed = Path("buildozer.spec")
-          print(sed.read_text())
+          print(Path("buildozer.spec").read_text())
           PY
 
       - name: Build APK
         env:
           ANDROIDSDK: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROIDNDK: /usr/local/lib/android/sdk/ndk/27.3.13750724
+          ANDROIDNDK: /usr/local/lib/android/sdk/ndk/25.2.9519653
           ANDROIDAPI: '33'
           ANDROIDMINAPI: '21'
         run: |
           rm -rf .buildozer
           rm -rf ~/.buildozer/android/platform/python-for-android
+
+          sed -i \
+            's|^android.ndk = .*|android.ndk = 25.2.9519653|' \
+            buildozer.spec
+
+          sed -i \
+            's|^android.ndk_path = .*|android.ndk_path = /usr/local/lib/android/sdk/ndk/25.2.9519653|' \
+            buildozer.spec
+
+          export ANDROIDSDK="$ANDROID_SDK_ROOT"
+          export ANDROIDNDK="$ANDROID_SDK_ROOT/ndk/25.2.9519653"
+          export ANDROIDAPI=33
+          export ANDROIDMINAPI=21
+
           buildozer android debug
 
       - name: Upload APK as artifact
