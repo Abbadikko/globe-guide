@@ -53,11 +53,11 @@ jobs:
 
       - name: Prepare compatible python-for-android
         run: |
-          rm -rf .buildozer ~/.buildozer python-for-android
+          rm -rf .buildozer
+          rm -rf ~/.buildozer
+          rm -rf python-for-android
 
-          git clone \
-            https://github.com/kivy/python-for-android.git \
-            python-for-android
+          git clone https://github.com/kivy/python-for-android.git python-for-android
 
           cd python-for-android
 
@@ -68,7 +68,7 @@ jobs:
             git fetch --depth 1 origin tag v2023.09.16
             git checkout --detach v2023.09.16
           else
-            echo "Compatible python-for-android tag 2023.09.16 was not found"
+            echo "Compatible python-for-android tag was not found"
             exit 1
           fi
 
@@ -80,18 +80,44 @@ jobs:
       - name: Fix sdkmanager path for Buildozer
         run: |
           sudo mkdir -p "$ANDROID_SDK_ROOT/tools/bin"
+
           sudo ln -sf \
             "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
             "$ANDROID_SDK_ROOT/tools/bin/sdkmanager"
+
           sudo ln -sf \
             "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/avdmanager" \
             "$ANDROID_SDK_ROOT/tools/bin/avdmanager"
+
           yes | "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" --licenses
 
       - name: Force Buildozer to use compatible python-for-android
         run: |
-          printf '\np4a.source_dir = %s\n' \
-            "$GITHUB_WORKSPACE/python-for-android" >> buildozer.spec
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("buildozer.spec")
+          text = path.read_text()
+
+          lines = [
+              line for line in text.splitlines()
+              if not line.strip().startswith("p4a.source_dir")
+          ]
+          text = "\n".join(lines).rstrip() + "\n"
+
+          marker = "\n[buildozer]"
+          setting = "\np4a.source_dir = " + str(Path.cwd() / "python-for-android") + "\n"
+
+          if marker not in text:
+              raise SystemExit("[buildozer] section not found")
+
+          text = text.replace(marker, setting + marker, 1)
+          path.write_text(text)
+
+          print("Effective p4a configuration:")
+          sed = Path("buildozer.spec")
+          print(sed.read_text())
+          PY
 
       - name: Build APK
         env:
@@ -101,6 +127,7 @@ jobs:
           ANDROIDMINAPI: '21'
         run: |
           rm -rf .buildozer
+          rm -rf ~/.buildozer/android/platform/python-for-android
           buildozer android debug
 
       - name: Upload APK as artifact
